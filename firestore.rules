@@ -1,0 +1,99 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} { allow read, write: if false; }
+
+    function isSignedIn() { return request.auth != null; }
+    function isAdmin() { return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "ADMIN"; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['email', 'name', 'role', 'isActive', 'createdAt']) &&
+        data.email is string && data.email.size() <= 100 &&
+        data.name is string && data.name.size() <= 100 &&
+        data.role is string && data.role.matches('^(ADMIN|MANAGER|USER)$') &&
+        data.isActive is bool &&
+        data.createdAt is number;
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(userId) && isValidUser(incoming()) && (isAdmin() || userId == request.auth.uid);
+      allow update: if isSignedIn() && isValidId(userId) && isValidUser(incoming()) && (isAdmin() || (userId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'updatedAt'])));
+      allow delete: if isAdmin();
+    }
+
+    match /logs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isSignedIn() && isValidId(logId) &&
+        incoming().keys().hasAll(['userId', 'userName', 'action', 'createdAt']) &&
+        incoming().userId == request.auth.uid &&
+        incoming().createdAt == request.time;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    function isValidClient(data) {
+      return data.keys().hasAll(['documentType', 'documentNumber', 'name']) &&
+        data.documentType in ['DNI', 'RUC'] &&
+        data.documentNumber is string && data.documentNumber.size() <= 20 &&
+        data.name is string && data.name.size() <= 150;
+    }
+
+    match /clients/{clientId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(clientId) && isValidClient(incoming());
+      allow update: if isSignedIn() && isValidId(clientId) && isValidClient(incoming());
+      allow delete: if isAdmin();
+    }
+
+    match /orders/{orderId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(orderId) &&
+        incoming().keys().hasAll(['type', 'serialNumber', 'clientId', 'date', 'status']) &&
+        incoming().type in ['POLLO_BB', 'POLLO_VIVO'] &&
+        incoming().status in ['PENDING', 'COMPLETED', 'CANCELLED'];
+      allow update: if isSignedIn() && isValidId(orderId);
+    }
+
+    match /remissionGuides/{guideId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(guideId) && incoming().keys().hasAll(['serialNumber', 'orderId', 'clientId', 'date']);
+      allow update: if isSignedIn() && isValidId(guideId);
+    }
+
+    match /healthCertificates/{certId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(certId) && incoming().keys().hasAll(['serialNumber', 'orderId', 'date']);
+      allow update: if isSignedIn() && isValidId(certId);
+    }
+
+    function isValidInventoryLog(data) {
+      return data.keys().hasAll(['type', 'animalType', 'date', 'quantity']) &&
+        data.type in ['INGRESO', 'MORTALIDAD'] &&
+        data.animalType in ['POLLO_BB', 'POLLO_VIVO'] &&
+        data.quantity is number;
+    }
+
+    match /inventoryLogs/{logId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(logId) && isValidInventoryLog(incoming());
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /sales/{saleId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /settings/{settingId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+  }
+}

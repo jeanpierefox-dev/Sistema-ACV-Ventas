@@ -1,0 +1,151 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with roles.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string", "enum": ["ADMIN", "MANAGER", "USER"] },
+        "isActive": { "type": "boolean" },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["email", "name", "role", "isActive"]
+    },
+    "Log": {
+      "title": "Log",
+      "description": "Activity log.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "action": { "type": "string" },
+        "details": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["userId", "userName", "action", "createdAt"]
+    },
+    "Client": {
+      "title": "Client",
+      "description": "Customer information.",
+      "type": "object",
+      "properties": {
+        "documentType": { "type": "string", "enum": ["DNI", "RUC"] },
+        "documentNumber": { "type": "string" },
+        "name": { "type": "string" },
+        "address": { "type": "string" },
+        "phone": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["documentType", "documentNumber", "name"]
+    },
+    "AppSetting": {
+      "title": "App Setting",
+      "description": "Application settings and counters.",
+      "type": "object",
+      "properties": {
+        "nextBbOrderSerial": { "type": "number" },
+        "nextAvOrderSerial": { "type": "number" },
+        "nextRemissionSerial": { "type": "number" },
+        "nextCertSerial": { "type": "number" }
+      }
+    },
+    "DispatchOrder": {
+      "title": "Dispatch Order",
+      "description": "Dispatch order (Pollo BB or Pollo Vivo).",
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "enum": ["POLLO_BB", "POLLO_VIVO"] },
+        "serialNumber": { "type": "string" },
+        "clientId": { "type": "string" },
+        "clientName": { "type": "string" },
+        "plateNumber": { "type": "string" },
+        "date": { "type": "number" },
+        "status": { "type": "string", "enum": ["PENDING", "COMPLETED", "CANCELLED"] },
+        "items": { "type": "array" },
+        "totalQuantity": { "type": "number" },
+        "totalBoxesOrCrates": { "type": "number" },
+        "createdAt": { "type": "number" },
+        "createdBy": { "type": "string" }
+      },
+      "required": ["type", "serialNumber", "clientId", "date", "status"]
+    },
+    "RemissionGuide": {
+      "title": "Remission Guide",
+      "description": "Guia de remision.",
+      "type": "object",
+      "properties": {
+        "serialNumber": { "type": "string" },
+        "orderId": { "type": "string" },
+        "clientId": { "type": "string" },
+        "date": { "type": "number" },
+        "departurePoint": { "type": "string" },
+        "arrivalPoint": { "type": "string" },
+        "transportName": { "type": "string" },
+        "transportRuc": { "type": "string" },
+        "plateNumber": { "type": "string" },
+        "driverLicense": { "type": "string" },
+        "items": { "type": "array" },
+        "totalWeight": { "type": "number" },
+        "createdAt": { "type": "number" },
+        "createdBy": { "type": "string" }
+      },
+      "required": ["serialNumber", "orderId", "clientId", "date"]
+    },
+    "HealthCertificate": {
+      "title": "Health Certificate",
+      "description": "Certificacion sanitaria.",
+      "type": "object",
+      "properties": {
+        "serialNumber": { "type": "string" },
+        "orderId": { "type": "string" },
+        "companyName": { "type": "string" },
+        "companyRuc": { "type": "string" },
+        "originName": { "type": "string" },
+        "originAddress": { "type": "string" },
+        "destinationAddress": { "type": "string" },
+        "purpose": { "type": "string" },
+        "species": { "type": "string" },
+        "product": { "type": "string" },
+        "quantity": { "type": "number" },
+        "date": { "type": "number" },
+        "createdAt": { "type": "number" },
+        "createdBy": { "type": "string" }
+      },
+      "required": ["serialNumber", "orderId", "date"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profiles"
+    },
+    "logs/{logId}": {
+      "schema": { "$ref": "#/entities/Log" },
+      "description": "Audit logs"
+    },
+    "clients/{clientId}": {
+      "schema": { "$ref": "#/entities/Client" },
+      "description": "Client directory"
+    },
+    "orders/{orderId}": {
+      "schema": { "$ref": "#/entities/DispatchOrder" },
+      "description": "Dispatch orders"
+    },
+    "remissionGuides/{guideId}": {
+      "schema": { "$ref": "#/entities/RemissionGuide" },
+      "description": "Remission guides"
+    },
+    "healthCertificates/{certId}": {
+      "schema": { "$ref": "#/entities/HealthCertificate" },
+      "description": "Health certificates"
+    },
+    "settings/{settingId}": {
+      "schema": { "$ref": "#/entities/AppSetting" },
+      "description": "Global settings and counters"
+    }
+  }
+}

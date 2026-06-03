@@ -1,0 +1,6 @@
+{
+  "name": "Agropecuaria Campo Verde - Sistema de Gestión",
+  "description": "Sistema integral para la gestión de ventas de pollos bebés y pollos vivos, incluyendo control de incubadoras, galpones y generación de documentos de despacho y guías de remisión.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
