@@ -99,6 +99,7 @@ export interface Sale {
   sex?: 'Macho' | 'Hembra' | 'Mixto'; // Para Pollo BB
   tipoAve?: string; // Para Pollo Vivo (e.g. Brasa, Presa)
   peso?: number; // Para Pollo Vivo
+  usoProposito?: string;
   notes?: string;
   createdAt: number;
   createdBy: string;

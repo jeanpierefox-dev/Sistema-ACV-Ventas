@@ -6,24 +6,29 @@ import { useNavigate } from 'react-router-dom';
 import { Egg, Lock, User as UserIcon, UserPlus } from 'lucide-react';
 
 export default function Login() {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [isRegistering, setIsRegistering] = useState(false);
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
     setError('');
+    setLoading(true);
     try {
       if (isRegistering) {
-        const userCred = await createUserWithEmailAndPassword(auth, email, password);
+        const authEmail = `${username.toLowerCase().replace(/\s+/g, '')}@campoverde.com`;
+        const userCred = await createUserWithEmailAndPassword(auth, authEmail, password);
         // Create the user document with ADMIN role by default since it's the first registration flow
         await setDoc(doc(db, 'users', userCred.user.uid), {
           id: userCred.user.uid,
-          email: email,
-          name: name || email.split('@')[0],
+          email: authEmail,
+          username: username,
+          name: name || username,
           role: 'ADMIN',
           isActive: true,
           createdAt: Date.now(),
@@ -31,28 +36,32 @@ export default function Login() {
         });
         navigate('/');
       } else {
-        await signInWithEmailAndPassword(auth, email, password);
+        const authEmail = `${username.toLowerCase().replace(/\s+/g, '')}@campoverde.com`;
+        await signInWithEmailAndPassword(auth, authEmail, password);
         navigate('/');
       }
     } catch (err: any) {
-      console.error(err);
+      console.error("Firebase Login Error:", err);
       if (err.code === 'auth/operation-not-allowed') {
-        setError('La autenticación por correo/contraseña no está habilitada en Firebase. Inicia sesión con Google o habilítala en la consola de Firebase.');
+        setError('Debes habilitar "Correo/Contraseña" en Firebase para que funcione el inicio de sesión por Usuario. (Ajuste técnico interno).');
       } else if (err.code === 'auth/network-request-failed') {
         setError('Error de red. Verifica tu conexión a internet.');
       } else {
         setError(isRegistering ? 'Error al crear la cuenta. Intenta nuevamente.' : 'Credenciales inválidas o cuenta no registrada.');
       }
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleGoogleSignIn = async () => {
+    if (loading) return;
     setError('');
+    setLoading(true);
     try {
       const provider = new GoogleAuthProvider();
       const userCred = await signInWithPopup(auth, provider);
       
-      // Check if user document exists, if not create it
       const userDocRef = doc(db, 'users', userCred.user.uid);
       const userDocSnap = await getDoc(userDocRef);
 
@@ -61,7 +70,7 @@ export default function Login() {
           id: userCred.user.uid,
           email: userCred.user.email,
           name: userCred.user.displayName || userCred.user.email?.split('@')[0],
-          role: 'ADMIN', // Default role for Google sign in
+          role: 'ADMIN',
           isActive: true,
           createdAt: Date.now(),
           updatedAt: Date.now()
@@ -69,8 +78,18 @@ export default function Login() {
       }
       navigate('/');
     } catch (err: any) {
-      console.error(err);
-      setError('Error al iniciar sesión con Google.');
+      console.error("Google Auth Error:", err);
+      if (err.code === 'auth/operation-not-allowed') {
+        setError('El inicio de sesión con Google no está habilitado.');
+      } else if (err.code === 'auth/popup-blocked') {
+        setError('El navegador bloqueó la ventana emergente.');
+      } else if (err.code === 'auth/cancelled-popup-request' || err.code === 'auth/popup-closed-by-user') {
+        setError('La ventana emergente de inicio de sesión fue cerrada.');
+      } else {
+        setError('Error al iniciar sesión con Google.');
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -117,17 +136,17 @@ export default function Login() {
           )}
 
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Correo Electrónico</label>
+            <label className="block text-sm font-medium text-slate-300 mb-2">Usuario</label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                 <UserIcon className="h-5 w-5 text-slate-400" />
               </div>
               <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 className="bg-white/10 border border-white/20 rounded-xl pl-10 pr-4 py-3 w-full text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 ring-indigo-500/50 backdrop-blur-md transition-all"
-                placeholder="usuario@ejemplo.com"
+                placeholder="Nombre de Usuario"
                 required
               />
             </div>
@@ -181,7 +200,7 @@ export default function Login() {
             Google
           </button>
 
-          <div className="text-center mt-4">
+          <div className="text-center mt-6">
             <button
               type="button"
               onClick={() => setIsRegistering(!isRegistering)}
@@ -192,7 +211,7 @@ export default function Login() {
           </div>
 
           <p className="text-[10px] text-slate-500 text-center mt-4 uppercase tracking-wider">
-            Autenticación segura 2FA gestionada por plataforma
+            Autenticación segura gestionada por plataforma
           </p>
         </form>
       </div>

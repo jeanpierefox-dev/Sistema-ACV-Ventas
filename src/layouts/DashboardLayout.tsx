@@ -46,6 +46,7 @@ export default function DashboardLayout() {
       title: 'Ventas y Emisión',
       items: [
         { name: 'Registro de Ventas', path: '/ventas', icon: FileText, roles: ['ADMIN', 'MANAGER', 'USER'] },
+        { name: 'Órdenes de Despacho', path: '/ordenes-despacho', icon: FileText, roles: ['ADMIN', 'MANAGER', 'USER'] },
         { name: 'Certificados SENASA', path: '/certificados', icon: FileBadge, roles: ['ADMIN', 'MANAGER', 'USER'] },
       ]
     },

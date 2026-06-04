@@ -15,7 +15,7 @@ export default function Users() {
   const [users, setUsers] = useState<User[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState({ id: '', name: '', email: '', password: '', role: 'USER' });
+  const [formData, setFormData] = useState({ id: '', name: '', username: '', password: '', role: 'USER' });
 
   useEffect(() => {
     const q = query(collection(db, 'users'));
@@ -33,13 +33,15 @@ export default function Users() {
                   updatedAt: Date.now()
               });
           } else {
-              // Register in secondary auth so we don't log out the current admin
-              const userCredential = await createUserWithEmailAndPassword(secondaryAuth, formData.email, formData.password);
+              const authEmail = `${formData.username.toLowerCase().replace(/\s+/g, '')}@campoverde.com`;
+              const userCredential = await createUserWithEmailAndPassword(secondaryAuth, authEmail, formData.password);
               const newUserId = userCredential.user.uid;
               
               await setDoc(doc(db, 'users', newUserId), {
+                  id: newUserId,
                   name: formData.name,
-                  email: formData.email,
+                  username: formData.username,
+                  email: authEmail,
                   role: formData.role,
                   isActive: true,
                   createdAt: Date.now(),
@@ -49,7 +51,7 @@ export default function Users() {
               await secondaryAuth.signOut();
           }
           setShowModal(false);
-          setFormData({ id: '', name: '', email: '', password: '', role: 'USER' });
+          setFormData({ id: '', name: '', username: '', password: '', role: 'USER' });
           setIsEditing(false);
       } catch (err: any) {
           console.error(err);
@@ -58,13 +60,13 @@ export default function Users() {
   };
 
   const handleEdit = (u: User) => {
-      setFormData({ id: u.id, name: u.name, email: u.email, password: '', role: u.role });
+      setFormData({ id: u.id, name: u.name, username: (u as any).username || u.email.split('@')[0], password: '', role: u.role });
       setIsEditing(true);
       setShowModal(true);
   };
 
   const handleDelete = async (userId: string) => {
-      if (confirm('¿Eliminar este usuario? Esto revocará su acceso a la plataforma.')) {
+      if (confirm('¿Eliminar este usuario? Esto revocará su acceso en la base de datos.')) {
           try {
               await deleteDoc(doc(db, 'users', userId));
           } catch(e: any) {
@@ -80,7 +82,7 @@ export default function Users() {
           <h1 className="text-2xl font-bold text-white">Usuarios y Permisos</h1>
           <p className="text-slate-400">Gestión de cuentas y niveles de acceso.</p>
         </div>
-        <button onClick={() => { setFormData({ id: '', name: '', email: '', password: '', role: 'USER' }); setIsEditing(false); setShowModal(true); }} className="flex items-center space-x-2 bg-indigo-500 hover:bg-indigo-400 text-white px-5 py-2.5 rounded-2xl font-bold transition-all shadow-lg shadow-indigo-500/20">
+        <button onClick={() => { setFormData({ id: '', name: '', username: '', password: '', role: 'USER' }); setIsEditing(false); setShowModal(true); }} className="flex items-center space-x-2 bg-indigo-500 hover:bg-indigo-400 text-white px-5 py-2.5 rounded-2xl font-bold transition-all shadow-lg shadow-indigo-500/20">
           <Plus className="w-5 h-5" /><span>Nuevo Usuario</span>
         </button>
       </div>
@@ -90,7 +92,7 @@ export default function Users() {
           <thead className="bg-white/5">
             <tr>
               <th className="px-6 py-4 text-left text-xs font-semibold text-indigo-300 uppercase tracking-wider">Usuario</th>
-              <th className="px-6 py-4 text-left text-xs font-semibold text-indigo-300 uppercase tracking-wider">Correo</th>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-indigo-300 uppercase tracking-wider">Usuario / Login</th>
               <th className="px-6 py-4 text-left text-xs font-semibold text-indigo-300 uppercase tracking-wider">Rol / Nivel</th>
               <th className="px-6 py-4 text-left text-xs font-semibold text-indigo-300 uppercase tracking-wider">Registro</th>
               <th className="px-6 py-4 text-left text-xs font-semibold text-indigo-300 uppercase tracking-wider">Acciones</th>
@@ -103,7 +105,7 @@ export default function Users() {
                   <UserCog className="w-5 h-5 text-slate-400" />
                   {u.name}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-slate-300">{u.email}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-slate-300">{(u as any).username || u.email.split('@')[0]}</td>
                 <td className="px-6 py-4 whitespace-nowrap">
                    <span className={`px-3 py-1 inline-flex text-[10px] uppercase tracking-wider font-bold rounded-full ${
                     u.role === 'ADMIN' ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/20' : 
@@ -152,12 +154,12 @@ export default function Users() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Correo Electrónico</label>
+                <label className="block text-sm font-medium text-slate-300 mb-1">Usuario (Login)</label>
                 <input 
-                  type="email" required disabled={isEditing}
+                  type="text" required disabled={isEditing}
                   className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 ring-indigo-500/50 text-white transition-all disabled:opacity-50"
-                  value={formData.email}
-                  onChange={e => setFormData({...formData, email: e.target.value})}
+                  value={formData.username}
+                  onChange={e => setFormData({...formData, username: e.target.value})}
                 />
               </div>
               {!isEditing && (

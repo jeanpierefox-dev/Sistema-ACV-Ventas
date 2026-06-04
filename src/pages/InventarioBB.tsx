@@ -62,7 +62,14 @@ export default function InventarioBB() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!userProfile || formData.items.length === 0) return;
+    if (!userProfile) {
+        alert('Cargando perfil, intente de nuevo en unos segundos.');
+        return;
+    }
+    if (formData.items.length === 0) {
+        alert('Debe agregar al menos un ítem.');
+        return;
+    }
     
     let totalQuantity = 0;
     if (formData.type === 'INGRESO') {

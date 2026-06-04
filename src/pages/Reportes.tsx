@@ -58,91 +58,220 @@ export default function Reportes() {
   const generateReportInfo = () => {
       const doc = new jsPDF();
       
-      doc.setFontSize(22);
-      doc.setTextColor('#4f46e5');
-      doc.text('CORPORING', 105, 20, { align: 'center' });
+      const themeColor = '#1e3a8a';
+      const secondaryColor = '#475569';
       
-      doc.setFontSize(14);
-      doc.setTextColor('#333333');
-      doc.text('REPORTE GERENCIAL CONSOLIDADO', 105, 30, { align: 'center' });
+      // Header
+      doc.setFillColor(30, 58, 138);
+      doc.rect(0, 0, 210, 40, 'F');
+      
+      doc.setFontSize(24);
+      doc.setTextColor('#ffffff');
+      doc.setFont('helvetica', 'bold');
+      doc.text('CORPORING S.A.', 14, 20);
       
       doc.setFontSize(10);
-      doc.setTextColor('#666666');
-      doc.text(`Fecha de Emisión: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, 14, 45);
-
-      let currentY = 55;
+      doc.setFont('helvetica', 'normal');
+      doc.text('REPORTE GERENCIAL CONSOLIDADO DE MOVIMIENTOS', 14, 28);
+      
+      doc.setFontSize(9);
+      doc.text(`Fecha de Emisión: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, 130, 25);
+      
+      let currentY = 50;
 
       // Seccion Resumen Financiero
-      doc.setFontSize(12);
-      doc.setTextColor('#4f46e5');
-      doc.text('RESUMEN FINANCIERO GLOBAL', 14, currentY);
+      doc.setFontSize(14);
+      doc.setTextColor(themeColor);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Resumen Financiero Global', 14, currentY);
+      doc.setDrawColor(200, 200, 200);
+      doc.line(14, currentY + 2, 196, currentY + 2);
       currentY += 10;
       
       autoTable(doc, {
           startY: currentY,
-          head: [['Concepto', 'Monto']],
+          head: [['Concepto', 'Monto (Soles)']],
           body: [
-              ['Costo / Inversión (Compras y Nacimientos)', `S/ ${totalInversionGlobal.toLocaleString(undefined, {minimumFractionDigits: 2})}`],
-              ['Total Recaudado (Ventas)', `S/ ${totalVentasTotales.toLocaleString(undefined, {minimumFractionDigits: 2})}`],
+              ['Inversión Acumulada (Compras e Ingresos)', `S/ ${totalInversionGlobal.toLocaleString(undefined, {minimumFractionDigits: 2})}`],
+              ['Total Recaudado (Ventas Históricas)', `S/ ${totalVentasTotales.toLocaleString(undefined, {minimumFractionDigits: 2})}`],
               ['Utilidad Bruta General', `S/ ${utilidadGeneral.toLocaleString(undefined, {minimumFractionDigits: 2})}`]
           ],
           theme: 'grid',
-          headStyles: { fillColor: [79, 70, 229] }
+          headStyles: { fillColor: [241, 245, 249], textColor: [30, 58, 138], fontStyle: 'bold' },
+          alternateRowStyles: { fillColor: [250, 250, 250] },
+          styles: { textColor: [51,51,51], fontSize: 10 }
       });
 
       currentY = (doc as any).lastAutoTable.finalY + 15;
 
-      // Seccion Planta / Incubacion
-      doc.setFontSize(12);
-      doc.setTextColor('#4f46e5');
-      doc.text('ESTADO: PLANTA DE INCUBACIÓN (POLLO BEBÉ)', 14, currentY);
+      // Mapear movimientos de Planta (Pollo BB)
+      doc.setFontSize(14);
+      doc.setTextColor(themeColor);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Estado de Cuenta: Planta de Incubación (Pollo BB)', 14, currentY);
+      doc.line(14, currentY + 2, 196, currentY + 2);
       currentY += 10;
 
       const ingresosBB = logs.filter(l => l.animalType === 'POLLO_BB' && l.type === 'INGRESO').reduce((a, b) => a + b.quantity, 0);
       const mortBB = logs.filter(l => l.animalType === 'POLLO_BB' && l.type === 'MORTALIDAD').reduce((a, b) => a + b.quantity, 0);
       const ventasBB = sales.filter(s => s.animalType === 'POLLO_BB').reduce((a, b) => a + b.quantity, 0);
-      const ventasBBSoles = sales.filter(s => s.animalType === 'POLLO_BB').reduce((acc, curr) => acc + curr.total, 0);
+
+      const movimientosPlanta = [
+         ['Ingresos / Nacimientos (+)', `${ingresosBB.toLocaleString()} aves`],
+         ['Mortalidad / Bajas (-)', `${mortBB.toLocaleString()} aves`],
+         ['Salidas por Ventas (-)', `${ventasBB.toLocaleString()} aves`],
+         ['Stock Físico Actual (=)', `${totalBB.toLocaleString()} aves`]
+      ];
 
       autoTable(doc, {
           startY: currentY,
-          head: [['Indicador', 'Cantidad', 'Importe']],
-          body: [
-              ['Histórico Ingresados / Nacidos', `${ingresosBB.toLocaleString()} aves`, `S/ ${totalInversionBB.toLocaleString(undefined, {minimumFractionDigits: 2})}`],
-              ['Mortalidad / Bajas (-)', `${mortBB.toLocaleString()} aves`, '-'],
-              ['Ventas Realizadas (-)', `${ventasBB.toLocaleString()} aves`, `S/ ${ventasBBSoles.toLocaleString(undefined, {minimumFractionDigits: 2})}`],
-              ['Activo Físico Disponible (=)', `${totalBB.toLocaleString()} aves`, '-'],
-          ],
-          theme: 'grid',
-          headStyles: { fillColor: [16, 185, 129] }
+          head: [['Tipo de Movimiento', 'Volumen']],
+          body: movimientosPlanta,
+          theme: 'striped',
+          headStyles: { fillColor: [241, 245, 249], textColor: [15, 118, 110], fontStyle: 'bold' },
+          styles: { textColor: [51,51,51], fontSize: 10 }
       });
 
       currentY = (doc as any).lastAutoTable.finalY + 15;
 
-      // Seccion Granja / Vivos
-      doc.setFontSize(12);
-      doc.setTextColor('#4f46e5');
-      doc.text('ESTADO: GRANJA (POLLO VIVO)', 14, currentY);
+      // Mapear movimientos de Granja (Pollo Vivo)
+      doc.setFontSize(14);
+      doc.setTextColor(themeColor);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Estado de Cuenta: Granja (Pollo Vivo)', 14, currentY);
+      doc.line(14, currentY + 2, 196, currentY + 2);
       currentY += 10;
 
       const ingresosVivo = logs.filter(l => l.animalType === 'POLLO_VIVO' && l.type === 'INGRESO').reduce((a, b) => a + b.quantity, 0);
       const mortVivo = logs.filter(l => l.animalType === 'POLLO_VIVO' && l.type === 'MORTALIDAD').reduce((a, b) => a + b.quantity, 0);
       const ventasVivo = sales.filter(s => s.animalType === 'POLLO_VIVO').reduce((a, b) => a + b.quantity, 0);
-      const ventasVivoSoles = sales.filter(s => s.animalType === 'POLLO_VIVO').reduce((acc, curr) => acc + curr.total, 0);
+
+      const movimientosGranja = [
+         ['Recepciones en Galpón (+)', `${ingresosVivo.toLocaleString()} aves`],
+         ['Mortalidad / Bajas (-)', `${mortVivo.toLocaleString()} aves`],
+         ['Salidas por Ventas (-)', `${ventasVivo.toLocaleString()} aves`],
+         ['Stock Físico Actual (=)', `${totalVivos.toLocaleString()} aves`]
+      ];
 
       autoTable(doc, {
           startY: currentY,
-          head: [['Indicador', 'Cantidad', 'Importe']],
-          body: [
-              ['Histórico Recepcionados', `${ingresosVivo.toLocaleString()} aves`, `S/ ${totalInversionVivos.toLocaleString(undefined, {minimumFractionDigits: 2})}`],
-              ['Mortalidad / Bajas (-)', `${mortVivo.toLocaleString()} aves`, '-'],
-              ['Ventas Realizadas (-)', `${ventasVivo.toLocaleString()} aves`, `S/ ${ventasVivoSoles.toLocaleString(undefined, {minimumFractionDigits: 2})}`],
-              ['Activo Físico Disponible (=)', `${totalVivos.toLocaleString()} aves`, '-'],
-          ],
-          theme: 'grid',
-          headStyles: { fillColor: [59, 130, 246] }
+          head: [['Tipo de Movimiento', 'Volumen']],
+          body: movimientosGranja,
+          theme: 'striped',
+          headStyles: { fillColor: [241, 245, 249], textColor: [37, 99, 235], fontStyle: 'bold' },
+          styles: { textColor: [51,51,51], fontSize: 10 }
       });
 
+      doc.setFontSize(9);
+      doc.setTextColor('#94a3b8');
+      doc.text('Documento confidencial generado automáticamente por el sistema.', 105, 280, { align: 'center' });
+
       doc.save('Reporte_Gerencial_Corporing.pdf');
+  };
+
+  const generateInventarioReport = () => {
+      const doc = new jsPDF();
+      
+      // Header
+      doc.setFillColor(30, 58, 138); // Dark blue header
+      doc.rect(0, 0, 210, 35, 'F');
+      
+      doc.setFontSize(20);
+      doc.setTextColor('#ffffff');
+      doc.setFont('helvetica', 'bold');
+      doc.text('CORPORING S.A.', 14, 20);
+      
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'normal');
+      doc.text('KARDEX DETALLADO DE INVENTARIOS Y MORTALIDAD', 14, 27);
+      
+      doc.setFontSize(9);
+      doc.text(`Fecha del Reporte: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, 130, 22);
+
+      const tableData = logs.map(log => {
+          let logCost = 0;
+          if (log.type === 'INGRESO' && log.items) {
+              log.items.forEach(item => {
+                  if (log.animalType === 'POLLO_BB') {
+                      logCost += ((item.pollosNacidos || 0) + (item.huevosIngresados || 0)) * (item.precioCosto || 0);
+                  } else {
+                      logCost += ((item.hembras || 0) + (item.machos || 0)) * (item.precioCosto || 0);
+                  }
+              });
+          }
+          return [
+              format(log.date, 'dd/MM/yyyy HH:mm'),
+              log.animalType === 'POLLO_BB' ? 'Incubación' : 'Granja',
+              log.type,
+              log.quantity.toLocaleString(),
+              logCost > 0 ? `S/ ${logCost.toLocaleString(undefined, {minimumFractionDigits: 2})}` : '-'
+          ];
+      });
+
+      autoTable(doc, {
+          startY: 45,
+          head: [['Fecha y Hora', 'División/Planta', 'Operación', 'Cantidad de Aves', 'Valorización (S/)']],
+          body: tableData,
+          theme: 'striped',
+          headStyles: { fillColor: [241, 245, 249], textColor: [30, 58, 138], fontStyle: 'bold', lineWidth: 0.1, lineColor: [200, 200, 200] },
+          styles: { textColor: [51,51,51], fontSize: 9 },
+          alternateRowStyles: { fillColor: [250, 252, 255] }
+      });
+      
+      doc.setFontSize(9);
+      doc.setTextColor('#94a3b8');
+      doc.text('Historial de movimientos de ingresos y bajas (mortalidad).', 105, 280, { align: 'center' });
+
+      doc.save('Reporte_Inventario.pdf');
+  };
+
+  const generateVentasReport = () => {
+      const doc = new jsPDF();
+      
+      // Header
+      doc.setFillColor(30, 58, 138); // Dark blue header
+      doc.rect(0, 0, 210, 35, 'F');
+      
+      doc.setFontSize(20);
+      doc.setTextColor('#ffffff');
+      doc.setFont('helvetica', 'bold');
+      doc.text('CORPORING S.A.', 14, 20);
+      
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'normal');
+      doc.text('ESTADO DE CUENTA: REGISTRO HISTÓRICO DE VENTAS', 14, 27);
+      
+      doc.setFontSize(9);
+      doc.text(`Corte de cuenta: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, 130, 22);
+
+      const tableData = sales.map(s => [
+          format(s.date, 'dd/MM/yyyy HH:mm'),
+          s.client,
+          s.documentNumber || '-',
+          s.animalType === 'POLLO_BB' ? 'Pollo Bebé (Incubación)' : 'Pollo Vivo (Granja)',
+          s.quantity.toLocaleString(),
+          `S/ ${s.total.toLocaleString(undefined, {minimumFractionDigits: 2})}`
+      ]);
+
+      const totalAcumulado = sales.reduce((acc, s) => acc + s.total, 0);
+
+      autoTable(doc, {
+          startY: 45,
+          head: [['Fecha Ref.', 'Titular / Destinatario', 'Doc / DNI', 'Clase de Activo', 'Volumen', 'Importe Liquidado']],
+          body: tableData,
+          theme: 'striped',
+          headStyles: { fillColor: [241, 245, 249], textColor: [30, 58, 138], fontStyle: 'bold', lineWidth: 0.1, lineColor: [200, 200, 200] },
+          styles: { textColor: [51,51,51], fontSize: 9 },
+          alternateRowStyles: { fillColor: [250, 252, 255] },
+          foot: [['', '', '', 'TOTAL CONSOLIDADO', '', `S/ ${totalAcumulado.toLocaleString(undefined, {minimumFractionDigits: 2})}`]],
+          footStyles: { fillColor: [30, 58, 138], textColor: [255, 255, 255], fontStyle: 'bold' }
+      });
+      
+      doc.setFontSize(9);
+      doc.setTextColor('#94a3b8');
+      doc.text('Detalle de cuentas por liquidar y ventas concretadas.', 105, 280, { align: 'center' });
+
+      doc.save('Reporte_Ventas_Historicas.pdf');
   };
 
   return (
@@ -235,9 +364,14 @@ export default function Reportes() {
 
       {activeTab === 'INVENTARIO' && (
       <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-3xl overflow-hidden mt-8">
-        <div className="p-6 border-b border-white/10 flex items-center gap-3">
-          <FileText className="w-5 h-5 text-indigo-400" />
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-indigo-300">Historial Detallado - Bitácora de Inventario</h2>
+        <div className="p-6 border-b border-white/10 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+              <FileText className="w-5 h-5 text-indigo-400" />
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-indigo-300">Historial Detallado - Bitácora de Inventario</h2>
+          </div>
+          <button onClick={generateInventarioReport} className="flex items-center space-x-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/20 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all">
+             <Download className="w-4 h-4" /><span>Descargar Inventario</span>
+          </button>
         </div>
         
         <div className="overflow-x-auto">
@@ -304,9 +438,14 @@ export default function Reportes() {
 
       {activeTab === 'VENTAS' && (
       <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-3xl overflow-hidden mt-8">
-        <div className="p-6 border-b border-white/10 flex items-center gap-3">
-          <ShoppingCart className="w-5 h-5 text-indigo-400" />
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-indigo-300">Resumen Detallado - Ventas Historicas</h2>
+        <div className="p-6 border-b border-white/10 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+              <ShoppingCart className="w-5 h-5 text-indigo-400" />
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-indigo-300">Resumen Detallado - Ventas Historicas</h2>
+          </div>
+          <button onClick={generateVentasReport} className="flex items-center space-x-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/20 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all">
+             <Download className="w-4 h-4" /><span>Descargar Ventas</span>
+          </button>
         </div>
         
         <div className="overflow-x-auto">

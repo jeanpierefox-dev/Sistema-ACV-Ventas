@@ -21,6 +21,7 @@ import Ventas from './pages/Ventas';
 
 import Certificados from './pages/Certificados';
 import Configuracion from './pages/Configuracion';
+import OrdenesDespacho from './pages/OrdenesDespacho';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { currentUser, loading } = useAuth();
@@ -43,6 +44,7 @@ export default function App() {
             <Route path="inventario-vivos" element={<InventarioVivos />} />
             <Route path="pollos-vivos" element={<PollosVivos />} />
             <Route path="ventas" element={<Ventas />} />
+            <Route path="ordenes-despacho" element={<OrdenesDespacho />} />
             <Route path="reportes" element={<Reportes />} />
             <Route path="usuarios" element={<Users />} />
             <Route path="certificados" element={<Certificados />} />

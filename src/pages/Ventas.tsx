@@ -25,6 +25,7 @@ export default function Ventas() {
     sex: 'Mixto',
     tipoAve: 'Brasa',
     peso: 0,
+    usoProposito: 'Comercialización',
     notes: ''
   });
 
@@ -78,11 +79,33 @@ export default function Ventas() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!userProfile || formData.price <= 0 || !formData.client) return;
+    if (!userProfile) {
+        alert('Cargando perfil de usuario, intente de nuevo en un momento.');
+        return;
+    }
+    if (!formData.client) {
+        alert('Debe ingresar el Cliente.');
+        return;
+    }
+    if (formData.price <= 0) {
+        alert('El precio debe ser mayor a 0.');
+        return;
+    }
     
-    // Si es Pollo BB, cantidad debe ser mayor a 0. Si es Vivo, peso o cantidad mayor a 0.
-    if (formData.animalType === 'POLLO_BB' && formData.quantity <= 0) return;
-    if (formData.animalType === 'POLLO_VIVO' && formData.quantity <= 0 && formData.peso <= 0) return;
+    if (formData.animalType === 'POLLO_BB' && formData.quantity <= 0) {
+        alert('La cantidad de Pollo Bebé debe ser mayor a 0.');
+        return;
+    }
+    if (formData.animalType === 'POLLO_VIVO') {
+        if (formData.quantity <= 0) {
+            alert('Debe ingresar la cantidad de aves vivas.');
+            return;
+        }
+        if (formData.peso <= 0) {
+            alert('Debe ingresar el peso total mayor a 0 para el Pollo Vivo.');
+            return;
+        }
+    }
 
     const currentStock = getProductStock(formData.animalType as any);
     if (formData.quantity > currentStock) {
@@ -103,6 +126,7 @@ export default function Ventas() {
         total: calculatedTotal,
         client: formData.client,
         clientAddress: formData.clientAddress,
+        usoProposito: formData.usoProposito,
         notes: formData.notes,
         createdAt: Date.now(),
         createdBy: userProfile.id
@@ -117,7 +141,7 @@ export default function Ventas() {
 
       await addDoc(collection(db, 'sales'), saleData);
       setShowModal(false);
-      setFormData({ animalType: 'POLLO_BB', documentType: 'BOLETA', documentNumber: '', client: '', clientAddress: '', quantity: 0, price: 0, sex: 'Mixto', tipoAve: 'Brasa', peso: 0, notes: '' });
+      setFormData({ animalType: 'POLLO_BB', documentType: 'BOLETA', documentNumber: '', client: '', clientAddress: '', quantity: 0, price: 0, sex: 'Mixto', tipoAve: 'Brasa', peso: 0, usoProposito: 'Comercialización', notes: '' });
     } catch (err) {
       console.error(err);
       alert('Error al registrar venta');
@@ -222,142 +246,6 @@ export default function Ventas() {
     doc.save(`Venta_Ticket_${sale.documentNumber || sale.id.slice(0,6)}.pdf`);
   };
 
-  const generateOrdenDespacho = (sale: Sale) => {
-    const doc = new jsPDF('landscape');
-    
-    // Titulo
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.text('ORDEN DE DESPACHO / GUÍA DE REMISIÓN REMITENTE', 148, 15, { align: 'center' });
-    doc.text('CORPORING - AGROPECUARIA CAMPO VERDE S.A.', 148, 22, { align: 'center' });
-    
-    // Rectangulo de N de certificado (Esquina superior derecha)
-    doc.rect(230, 8, 50, 10);
-    doc.setFontSize(8);
-    doc.text('N° de Documento', 255, 12, { align: 'center' });
-    doc.text(`OD - ${sale.documentNumber || sale.id.slice(0,5)}`, 255, 16, { align: 'center' });
-
-    let currentY = 30;
-
-    // Tabla de Datos
-    // Row 1: DATOS DE LA EMPRESA
-    doc.setFillColor(230, 230, 230);
-    doc.rect(14, currentY, 270, 7, 'DF');
-    doc.setFontSize(9);
-    doc.text('DATOS DE LA EMPRESA / REMITENTE', 149, currentY + 5, { align: 'center' });
-    currentY += 7;
-
-    // Row 2: Razón Social / RUC
-    doc.rect(14, currentY, 150, 8);
-    doc.rect(164, currentY, 120, 8);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.text('RAZÓN SOCIAL / NOMBRE', 16, currentY + 4);
-    doc.setFontSize(11);
-    doc.setTextColor(0, 0, 150);
-    doc.text('AGROPECUARIA CAMPO VERDE S.A.', 55, currentY + 5);
-    
-    doc.setTextColor(0,0,0);
-    doc.setFontSize(8);
-    doc.text('RUC / DNI', 166, currentY + 4);
-    doc.setFontSize(11);
-    doc.setTextColor(0, 0, 150);
-    doc.text('20393069997', 190, currentY + 5);
-    doc.setTextColor(0,0,0);
-    currentY += 8;
-
-    // Row 3: DATOS DEL DESTINATARIO
-    doc.setFillColor(230, 230, 230);
-    doc.rect(14, currentY, 270, 7, 'DF');
-    doc.setFontSize(9);
-    doc.text('DATOS DEL DESTINATARIO / CLIENTE', 149, currentY + 5, { align: 'center' });
-    currentY += 7;
-
-    // Row 4: Nombre / Doc
-    doc.rect(14, currentY, 150, 8);
-    doc.rect(164, currentY, 120, 8);
-    doc.setFontSize(8);
-    doc.text('CLIENTE:', 16, currentY + 4);
-    doc.setFontSize(11);
-    doc.setTextColor(0, 0, 150);
-    doc.text(sale.client, 35, currentY + 5);
-    doc.setTextColor(0,0,0);
-    doc.setFontSize(8);
-    doc.text('DNI / RUC:', 166, currentY + 4);
-    doc.setFontSize(11);
-    doc.setTextColor(0, 0, 150);
-    doc.text(sale.documentNumber || 'S/N', 185, currentY + 5);
-    doc.setTextColor(0,0,0);
-    currentY += 8;
-
-    // Row 5: Ubicacion
-    doc.rect(14, currentY, 270, 12);
-    doc.setFontSize(7);
-    doc.text('DIRECCIÓN DE LLEGADA', 16, currentY + 4);
-    
-    doc.setFontSize(10);
-    doc.setTextColor(0, 0, 150);
-    doc.text(sale.clientAddress || 'NO DECLARADO', 16, currentY + 10);
-    doc.setTextColor(0,0,0);
-    currentY += 12;
-
-    // Row 6: MERCANCIAS
-    doc.setFillColor(230, 230, 230);
-    doc.rect(14, currentY, 270, 7, 'DF');
-    doc.setFontSize(9);
-    doc.text('DETALLE DE DESPACHO', 149, currentY + 5, { align: 'center' });
-    currentY += 7;
-
-    // Row 7: Detalle mercancias header
-    doc.rect(14, currentY, 80, 6);
-    doc.rect(94, currentY, 100, 6);
-    doc.rect(194, currentY, 45, 6);
-    doc.rect(239, currentY, 45, 6);
-    doc.setFontSize(8);
-    doc.text('FECHA/HORA', 54, currentY + 4, { align: 'center' });
-    doc.text('PRODUCTO', 144, currentY + 4, { align: 'center' });
-    doc.text('CANT. INTERNA (AVES)', 216.5, currentY + 4, { align: 'center' });
-    doc.text('PESO PROMEDIO / TOTAL KG', 261.5, currentY + 4, { align: 'center' });
-    currentY += 6;
-
-    // Row 8: Detalle mercancias Content
-    doc.rect(14, currentY, 80, 12);
-    doc.rect(94, currentY, 100, 12);
-    doc.rect(194, currentY, 45, 12);
-    doc.rect(239, currentY, 45, 12);
-    
-    doc.setFontSize(11);
-    doc.setTextColor(0, 0, 150);
-    
-    const producto = sale.animalType === 'POLLO_BB' ? `Pollo Bebé (${sale.sex})` : `Pollo Vivo (${sale.tipoAve})`;
-    
-    doc.text(format(new Date(sale.date), 'dd/MM/yyyy HH:mm'), 54, currentY + 8, { align: 'center' });
-    doc.text(producto, 144, currentY + 8, { align: 'center' });
-    doc.text(sale.quantity.toLocaleString(), 216.5, currentY + 8, { align: 'center' });
-    doc.text(sale.animalType === 'POLLO_VIVO' && sale.peso ? sale.peso.toString() : '-', 261.5, currentY + 8, { align: 'center' });
-    doc.setTextColor(0,0,0);
-    currentY += 12;
-
-    // Footer
-    doc.rect(14, currentY, 270, 30);
-    
-    doc.setFontSize(9);
-    doc.text('Lugar de Emisión:', 16, currentY + 15);
-    doc.setFontSize(11);
-    doc.setTextColor(0, 0, 150);
-    doc.text('CAMPO VERDE', 45, currentY + 15);
-    doc.setTextColor(0,0,0);
-    
-    doc.setFontSize(8);
-    doc.text('Firma y Sello de Despacho', 120, currentY + 20, { align: 'center' });
-    doc.text('Firma de Recepción Cliente', 200, currentY + 20, { align: 'center' });
-    
-    doc.line(90, currentY + 16, 150, currentY + 16);
-    doc.line(170, currentY + 16, 230, currentY + 16);
-
-    doc.save(`Orden_Despacho_${sale.documentNumber || sale.id.slice(0,6)}.pdf`);
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -433,9 +321,6 @@ export default function Ventas() {
                        </button>
                        <button onClick={() => generatePDFTicket(sale)} title="Imprimir Ticket" className="p-1.5 text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 rounded-lg transition-colors">
                            <Printer className="w-4 h-4"/>
-                       </button>
-                       <button onClick={() => generateOrdenDespacho(sale)} title="Orden de Despacho" className="p-1.5 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 rounded-lg transition-colors">
-                           <Truck className="w-4 h-4"/>
                        </button>
                        <button onClick={() => handleDelete(sale.id)} title="Eliminar" className="p-1.5 text-red-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors ml-2">
                            <Trash2 className="w-4 h-4"/>
@@ -591,6 +476,23 @@ export default function Ventas() {
                     onChange={e => setFormData({...formData, price: Number(e.target.value)})}
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">Uso o Propósito (SENASA)</label>
+                <select 
+                  className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 ring-indigo-500/50 text-white transition-all appearance-none"
+                  value={formData.usoProposito}
+                  onChange={e => setFormData({...formData, usoProposito: e.target.value})}
+                >
+                  <option value="Reproducción" className="text-slate-900">Reproducción</option>
+                  <option value="Beneficio" className="text-slate-900">Beneficio</option>
+                  <option value="Crianza" className="text-slate-900">Crianza</option>
+                  <option value="Engorde" className="text-slate-900">Engorde</option>
+                  <option value="Incubación" className="text-slate-900">Incubación</option>
+                  <option value="Agricultura" className="text-slate-900">Agricultura</option>
+                  <option value="Comercialización" className="text-slate-900">Comercialización</option>
+                </select>
               </div>
 
               <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 flex justify-between items-center mt-2">

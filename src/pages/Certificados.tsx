@@ -30,7 +30,7 @@ export default function Certificados() {
     // Sort by type: POLLO_BB first, then POLLO_VIVO
     return filtered.sort((a, b) => {
       if (a.animalType === b.animalType) {
-        return b.date - a.date;
+        return a.date - b.date;
       }
       return a.animalType === 'POLLO_BB' ? -1 : 1;
     });
@@ -42,15 +42,16 @@ export default function Certificados() {
     const doc = new jsPDF('landscape');
     
     // Titulo
-    doc.setFontSize(14);
+    doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
-    doc.text('CERTIFICACIÓN SANITARIA PARA LA MOVILIZACIÓN DE AVES DOMÉSTICAS VIVAS Y SUS PRODUCTOS PROCEDENTES DE ESTABLECIMIENTOS AVÍCOLAS', 148, 15, { align: 'center' });
+    doc.text('CERTIFICACIÓN SANITARIA PARA LA MOVILIZACIÓN DE AVES DOMÉSTICAS VIVAS V.2', 148, 15, { align: 'center' });
     doc.text('REGISTRADOS Y AUTORIZADOS POR EL SENASA', 148, 22, { align: 'center' });
     
     // Rectangulo de N de certificado (Esquina superior derecha)
     doc.rect(230, 8, 50, 10);
     doc.setFontSize(8);
     doc.text('N° de certificación', 255, 12, { align: 'center' });
+    doc.setFontSize(10);
     doc.text(`GSA493 - ${sale.documentNumber || sale.id.slice(0,5)}`, 255, 16, { align: 'center' });
 
     let currentY = 30;
@@ -89,6 +90,10 @@ export default function Certificados() {
     doc.text('DATOS DEL ESTABLECIMIENTO AVÍCOLA AUTORIZADO DE ORIGEN', 149, currentY + 5, { align: 'center' });
     currentY += 7;
 
+    const isPolloBB = sale.animalType === 'POLLO_BB';
+    const nroAutorizacion = isPolloBB ? '05891' : '08638';
+    const nombreEstablecimiento = isPolloBB ? 'PLANTA INCUBADORA - CAMPO VERDE' : 'GRANJA - CAMPO VERDE';
+
     // Row 4: Nombre / N Autorizacion
     doc.rect(14, currentY, 130, 8);
     doc.rect(144, currentY, 140, 8);
@@ -96,13 +101,13 @@ export default function Certificados() {
     doc.text('NOMBRE:', 16, currentY + 4);
     doc.setFontSize(11);
     doc.setTextColor(0, 0, 150);
-    doc.text('GRANJA - CAMPO VERDE', 35, currentY + 5);
+    doc.text(nombreEstablecimiento, 35, currentY + 5);
     doc.setTextColor(0,0,0);
     doc.setFontSize(8);
     doc.text('N° DE AUTORIZACIÓN Y REGISTRO:', 146, currentY + 4);
     doc.setFontSize(11);
     doc.setTextColor(0, 0, 150);
-    doc.text('08638', 210, currentY + 5);
+    doc.text(nroAutorizacion, 210, currentY + 5);
     doc.setTextColor(0,0,0);
     currentY += 8;
 
@@ -153,28 +158,29 @@ export default function Certificados() {
 
     // Row 8: Checkboxes
     doc.rect(14, currentY, 270, 8);
-    doc.setFontSize(8);
+    doc.setFontSize(6);
     doc.text('USO O PROPÓSITO :', 16, currentY + 5);
     
     // Checkboxes simulation
-    let checkX = 45;
+    let checkX = 40;
     const drawBox = (label: string, x: number, isChecked: boolean) => {
         doc.rect(x, currentY + 2, 4, 4);
         if (isChecked) {
             doc.text('X', x + 1, currentY + 5.5);
         }
-        doc.text(label, x + 6, currentY + 5);
-        return x + doc.getTextWidth(label) + 15;
+        doc.text(label, x + 5, currentY + 5);
+        return x + doc.getTextWidth(label) + 8;
     };
     
-    checkX = drawBox('REPRODUCCIÓN', checkX, false);
-    checkX = drawBox('BENEFICIO', checkX, false);
-    checkX = drawBox('CRIANZA', checkX, false);
-    checkX = drawBox('ENGORDE', checkX, false);
-    checkX = drawBox('INCUBACIÓN', checkX, false);
-    checkX = drawBox('AGRICULTURA', checkX, false);
-    checkX = drawBox('RENDERING', checkX, false);
-    checkX = drawBox('COMERCIALIZACIÓN', checkX, true); // Marcado por defecto
+    const propToUse = sale.usoProposito || 'Comercialización';
+    checkX = drawBox('REPRODUCCIÓN', checkX, propToUse === 'Reproducción');
+    checkX = drawBox('BENEFICIO', checkX, propToUse === 'Beneficio');
+    checkX = drawBox('CRIANZA', checkX, propToUse === 'Crianza');
+    checkX = drawBox('ENGORDE', checkX, propToUse === 'Engorde');
+    checkX = drawBox('INCUBACIÓN', checkX, propToUse === 'Incubación');
+    checkX = drawBox('AGRICULTURA', checkX, propToUse === 'Agricultura');
+    checkX = drawBox('RENDERING', checkX, propToUse === 'Rendering');
+    checkX = drawBox('COMERCIALIZACIÓN', checkX, propToUse === 'Comercialización');
     drawBox('OTRO (especificar):', checkX, false);
     currentY += 8;
 
