@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { auth } from '../lib/firebase';
 import { Egg, Bird, Users, FileText, Home, LogOut, FileSearch, PlusCircle, Activity, FileBadge, Settings } from 'lucide-react';
 
 export default function DashboardLayout() {
-  const { userProfile } = useAuth();
+  const { userProfile, logout } = useAuth();
   const location = useLocation();
   const [logoUrl, setLogoUrl] = useState<string | null>(localStorage.getItem('appLogo'));
 
@@ -18,7 +17,7 @@ export default function DashboardLayout() {
   }, []);
 
   const handleLogout = () => {
-    auth.signOut();
+    logout();
   };
 
   const navGroups = [

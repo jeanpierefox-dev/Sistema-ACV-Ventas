@@ -4,12 +4,6 @@ import { db } from '../lib/firebase';
 import { User } from '../types';
 import { ShieldCheck, UserCog, Plus, Trash2, Edit2 } from 'lucide-react';
 import { format } from 'date-fns';
-import firebaseConfig from '../../firebase-applet-config.json';
-import { initializeApp, getApps } from 'firebase/app';
-import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
-
-const secondaryApp = getApps().find(app => app.name === 'Secondary') || initializeApp(firebaseConfig, 'Secondary');
-const secondaryAuth = getAuth(secondaryApp);
 
 export default function Users() {
   const [users, setUsers] = useState<User[]>([]);
@@ -27,28 +21,30 @@ export default function Users() {
       e.preventDefault();
       try {
           if (isEditing) {
-              await updateDoc(doc(db, 'users', formData.id), {
+              const updates: any = {
                   name: formData.name,
                   role: formData.role,
                   updatedAt: Date.now()
-              });
+              };
+              if (formData.password) {
+                  updates.password = formData.password;
+              }
+              await updateDoc(doc(db, 'users', formData.id), updates);
           } else {
               const authEmail = `${formData.username.toLowerCase().replace(/\s+/g, '')}@campoverde.com`;
-              const userCredential = await createUserWithEmailAndPassword(secondaryAuth, authEmail, formData.password);
-              const newUserId = userCredential.user.uid;
+              const newUserId = 'local_' + Date.now().toString();
               
               await setDoc(doc(db, 'users', newUserId), {
                   id: newUserId,
                   name: formData.name,
                   username: formData.username,
+                  password: formData.password, // Only used for the basic custom login
                   email: authEmail,
                   role: formData.role,
                   isActive: true,
                   createdAt: Date.now(),
                   updatedAt: Date.now()
               });
-              
-              await secondaryAuth.signOut();
           }
           setShowModal(false);
           setFormData({ id: '', name: '', username: '', password: '', role: 'USER' });
@@ -162,17 +158,15 @@ export default function Users() {
                   onChange={e => setFormData({...formData, username: e.target.value})}
                 />
               </div>
-              {!isEditing && (
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-1">Contraseña</label>
-                    <input 
-                      type="password" required minLength={6}
-                      className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 ring-indigo-500/50 text-white transition-all"
-                      value={formData.password}
-                      onChange={e => setFormData({...formData, password: e.target.value})}
-                    />
-                  </div>
-              )}
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">{isEditing ? 'Nueva Contraseña (dejar en blanco para mantener)' : 'Contraseña'}</label>
+                <input 
+                  type="password" required={!isEditing} minLength={4}
+                  className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 ring-indigo-500/50 text-white transition-all"
+                  value={formData.password}
+                  onChange={e => setFormData({...formData, password: e.target.value})}
+                />
+              </div>
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1">Rol / Permisos</label>
                 <select 
