@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, where, onSnapshot, addDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { DispatchOrder, Client } from '../types';
 import { useAuth } from '../context/AuthContext';
-import { Plus, Printer, CheckCircle } from 'lucide-react';
+import { Plus, Printer, CheckCircle, Edit2, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 
 export default function PollosVivos() {
@@ -11,6 +11,7 @@ export default function PollosVivos() {
   const [orders, setOrders] = useState<DispatchOrder[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [showModal, setShowModal] = useState(false);
+  const [editingOrder, setEditingOrder] = useState<DispatchOrder | null>(null);
   
   const [formData, setFormData] = useState({
     clientId: '',
@@ -18,10 +19,11 @@ export default function PollosVivos() {
     hInicio: '',
     hFinal: '',
     observaciones: '',
+    associatedSaleDocument: '',
   });
 
   const [items, setItems] = useState([
-    { plantel: 'EVP-01', galpon: '01', jabas: 0, avesPorJaba: 0, tipoPollo: 'BRASA', sexo: 'M', pesoPromedio: 0 }
+    { plantel: 'EVP-01', galpon: '01', jabas: 0, avesPorJaba: 0, tipoPollo: 'BRASA' as any, sexo: 'M' as any, pesoPromedio: 0 }
   ]);
 
   useEffect(() => {
@@ -38,6 +40,44 @@ export default function PollosVivos() {
     setItems([...items, { plantel: 'EVP-01', galpon: '01', jabas: 0, avesPorJaba: 0, tipoPollo: 'BRASA', sexo: 'M', pesoPromedio: 0 }]);
   };
 
+  const handleOpenEdit = (order: DispatchOrder) => {
+    setEditingOrder(order);
+    setFormData({
+      clientId: order.clientId,
+      plateNumber: order.plateNumber || '',
+      hInicio: '',
+      hFinal: '',
+      observaciones: '',
+      associatedSaleDocument: order.associatedSaleDocument || '',
+    });
+    if (order.plantelDetails && order.plantelDetails.length > 0) {
+      setItems(order.plantelDetails.map(it => ({
+        ...it,
+        tipoPollo: it.tipoPollo || 'BRASA'
+      })));
+    } else {
+      setItems([{ plantel: 'EVP-01', galpon: '01', jabas: 0, avesPorJaba: 0, tipoPollo: 'BRASA', sexo: 'M', pesoPromedio: 0 }]);
+    }
+    setShowModal(true);
+  };
+
+  const handleOpenNew = () => {
+    setEditingOrder(null);
+    setFormData({ clientId: '', plateNumber: '', hInicio: '', hFinal: '', observaciones: '', associatedSaleDocument: '' });
+    setItems([{ plantel: 'EVP-01', galpon: '01', jabas: 0, avesPorJaba: 0, tipoPollo: 'BRASA', sexo: 'M', pesoPromedio: 0 }]);
+    setShowModal(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (confirm('¿Eliminar esta orden de despacho?')) {
+      try {
+        await deleteDoc(doc(db, 'orders', id));
+      } catch (e) {
+        alert("Error al eliminar");
+      }
+    }
+  };
+
   const handleCreateOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.clientId) return alert("Seleccione un cliente");
@@ -46,30 +86,38 @@ export default function PollosVivos() {
     const totalAves = items.reduce((acc, it) => acc + (it.jabas * it.avesPorJaba), 0);
     const totalJabas = items.reduce((acc, it) => acc + Number(it.jabas), 0);
 
-    const docData = {
-      type: 'POLLO_VIVO',
-      serialNumber: `OPV-${Date.now().toString().slice(-6)}`,
+    const baseData = {
       clientId: client?.id,
       clientName: client?.name,
       plateNumber: formData.plateNumber,
-      date: Date.now(),
-      status: 'PENDING',
+      associatedSaleDocument: formData.associatedSaleDocument,
       plantelDetails: items.map(it => ({
         ...it,
         cantidad: it.jabas * it.avesPorJaba
       })),
       totalQuantity: totalAves,
       totalBoxesOrCrates: totalJabas,
-      createdAt: Date.now(),
-      createdBy: currentUser?.uid || 'UNKNOWN'
     };
 
     try {
-      await addDoc(collection(db, 'orders'), docData);
-      // Opcional: addDoc para guia de remision a su respectiva coleccion.
+      if (editingOrder) {
+         await updateDoc(doc(db, 'orders', editingOrder.id), baseData);
+      } else {
+         const docData = {
+           ...baseData,
+           type: 'POLLO_VIVO',
+           serialNumber: `OPV-${Date.now().toString().slice(-6)}`,
+           date: Date.now(),
+           status: 'PENDING',
+           createdAt: Date.now(),
+           createdBy: currentUser?.uid || 'UNKNOWN'
+         };
+         await addDoc(collection(db, 'orders'), docData);
+      }
       setShowModal(false);
-      setFormData({ clientId: '', plateNumber: '', hInicio: '', hFinal: '', observaciones: ''});
+      setFormData({ clientId: '', plateNumber: '', hInicio: '', hFinal: '', observaciones: '', associatedSaleDocument: '' });
       setItems([{ plantel: 'EVP-01', galpon: '01', jabas: 0, avesPorJaba: 0, tipoPollo: 'BRASA', sexo: 'M', pesoPromedio: 0 }]);
+      setEditingOrder(null);
     } catch (e) {
       console.error(e);
       alert("Error al generar orden");
@@ -83,7 +131,7 @@ export default function PollosVivos() {
           <h1 className="text-2xl font-bold text-white">Despacho de Pollos Vivos</h1>
           <p className="text-slate-400">Gestión de venta, pesaje y remisión de aves de granja.</p>
         </div>
-        <button onClick={() => setShowModal(true)} className="flex items-center space-x-2 bg-indigo-500 hover:bg-indigo-400 text-white px-5 py-2.5 rounded-2xl font-bold transition-all shadow-lg shadow-indigo-500/20">
+        <button onClick={handleOpenNew} className="flex items-center space-x-2 bg-indigo-500 hover:bg-indigo-400 text-white px-5 py-2.5 rounded-2xl font-bold transition-all shadow-lg shadow-indigo-500/20">
           <Plus className="w-5 h-5" /><span>Nueva Orden</span>
         </button>
       </div>
@@ -94,6 +142,7 @@ export default function PollosVivos() {
             <tr>
               <th className="px-6 py-4 text-left text-xs font-semibold text-indigo-300 uppercase tracking-wider">Orden</th>
               <th className="px-6 py-4 text-left text-xs font-semibold text-indigo-300 uppercase tracking-wider">Fecha</th>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-indigo-300 uppercase tracking-wider">Doc. Venta</th>
               <th className="px-6 py-4 text-left text-xs font-semibold text-indigo-300 uppercase tracking-wider">Cliente</th>
               <th className="px-6 py-4 text-left text-xs font-semibold text-indigo-300 uppercase tracking-wider">Aves</th>
               <th className="px-6 py-4 text-right text-xs font-semibold text-indigo-300 uppercase tracking-wider">Acciones</th>
@@ -104,16 +153,19 @@ export default function PollosVivos() {
               <tr key={o.id} className="hover:bg-white/5 transition-colors">
                 <td className="px-6 py-4 whitespace-nowrap font-medium text-white">{o.serialNumber}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-slate-300">{format(o.date, 'dd/MM/yyyy HH:mm')}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-slate-300">{o.associatedSaleDocument || '-'}</td>
                 <td className="px-6 py-4 whitespace-nowrap font-medium text-white">{o.clientName}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-slate-300">{o.totalQuantity.toLocaleString()} Und. ({o.totalBoxesOrCrates} jabas)</td>
                 <td className="px-6 py-4 whitespace-nowrap text-right space-x-2">
+                  <button onClick={() => handleOpenEdit(o)} className="text-blue-400 hover:text-white bg-blue-500/10 hover:bg-blue-500/20 p-2 rounded-lg transition-colors" title="Editar"><Edit2 className="w-4 h-4" /></button>
+                  <button onClick={() => handleDelete(o.id)} className="text-red-400 hover:text-white bg-red-500/10 hover:bg-red-500/20 p-2 rounded-lg transition-colors" title="Eliminar"><Trash2 className="w-4 h-4" /></button>
                   <button className="text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 p-2 rounded-lg transition-colors border border-white/10" title="Imprimir Despacho"><Printer className="w-4 h-4" /></button>
                 </td>
               </tr>
             ))}
             {orders.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-6 py-8 text-center text-slate-400">
+                <td colSpan={6} className="px-6 py-8 text-center text-slate-400">
                   No hay órdenes generadas aún.
                 </td>
               </tr>
@@ -141,6 +193,10 @@ export default function PollosVivos() {
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-1">Placa Camión</label>
                   <input type="text" className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 ring-indigo-500/50 backdrop-blur-md text-white transition-all" value={formData.plateNumber} onChange={e => setFormData({...formData, plateNumber: e.target.value})} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">Boleta / Factura</label>
+                  <input type="text" placeholder="Ej: F001-000032" className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 ring-indigo-500/50 backdrop-blur-md text-white transition-all" value={formData.associatedSaleDocument} onChange={e => setFormData({...formData, associatedSaleDocument: e.target.value})} />
                 </div>
               </div>
 

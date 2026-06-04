@@ -56,6 +56,8 @@ export interface DispatchOrder {
   // Only for Aves / Pollo vivo (weights)
   totalWeight?: number;
 
+  associatedSaleDocument?: string;
+
   createdAt: number;
   createdBy: string;
 }

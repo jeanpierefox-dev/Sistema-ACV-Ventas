@@ -297,7 +297,7 @@ export default function Reportes() {
           onClick={() => setActiveTab('INVENTARIO')}
           className={`flex items-center space-x-2 px-5 py-2.5 rounded-xl font-medium transition-all ${activeTab === 'INVENTARIO' ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}
         >
-          <Database className="w-4 h-4" /><span>Inventario</span>
+          <Database className="w-4 h-4" /><span>Ingresos y Mortalidad</span>
         </button>
         <button 
           onClick={() => setActiveTab('VENTAS')}

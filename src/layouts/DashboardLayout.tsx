@@ -52,7 +52,7 @@ export default function DashboardLayout() {
     {
       title: 'Administración',
       items: [
-        { name: 'Reportes', path: '/reportes', icon: FileText, roles: ['ADMIN', 'MANAGER', 'USER'] },
+        { name: 'Reportes (Ingresos, Mortalidad)', path: '/reportes', icon: FileText, roles: ['ADMIN', 'MANAGER', 'USER'] },
         { name: 'Clientes', path: '/clientes', icon: Users, roles: ['ADMIN', 'MANAGER', 'USER'] },
         { name: 'Usuarios y Permisos', path: '/usuarios', icon: FileSearch, roles: ['ADMIN'] },
         { name: 'Configuración', path: '/config', icon: Settings, roles: ['ADMIN', 'MANAGER'] },

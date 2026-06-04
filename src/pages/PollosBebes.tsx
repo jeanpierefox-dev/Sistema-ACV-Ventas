@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, where, onSnapshot, addDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { DispatchOrder, Client } from '../types';
 import { useAuth } from '../context/AuthContext';
-import { Plus, Printer } from 'lucide-react';
+import { Plus, Printer, Edit2, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 
 export default function PollosBebes() {
@@ -11,14 +11,16 @@ export default function PollosBebes() {
   const [orders, setOrders] = useState<DispatchOrder[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [showModal, setShowModal] = useState(false);
+  const [editingOrder, setEditingOrder] = useState<DispatchOrder | null>(null);
   
   const [formData, setFormData] = useState({
     clientId: '',
     plateNumber: '',
+    associatedSaleDocument: '',
   });
 
   const [items, setItems] = useState([
-    { incubadora: '01', cajas: 0, avesPorCaja: 100, sexo: 'H', tipo: 'B' }
+    { incubadora: '01', cajas: 0, avesPorCaja: 100, sexo: 'H', tipo: 'B' as any }
   ]);
 
   useEffect(() => {
@@ -29,6 +31,41 @@ export default function PollosBebes() {
     return () => { unsub(); unsubc() };
   }, []);
 
+  const handleOpenEdit = (order: DispatchOrder) => {
+    setEditingOrder(order);
+    setFormData({
+      clientId: order.clientId,
+      plateNumber: order.plateNumber || '',
+      associatedSaleDocument: order.associatedSaleDocument || '',
+    });
+    if (order.incubatorDetails && order.incubatorDetails.length > 0) {
+      setItems(order.incubatorDetails.map(it => ({
+        ...it,
+        tipo: 'B' // defaulting to 'B' for backward compat
+      })));
+    } else {
+      setItems([{ incubadora: '01', cajas: 0, avesPorCaja: 100, sexo: 'H', tipo: 'B' }]);
+    }
+    setShowModal(true);
+  };
+
+  const handleOpenNew = () => {
+    setEditingOrder(null);
+    setFormData({ clientId: '', plateNumber: '', associatedSaleDocument: '' });
+    setItems([{ incubadora: '01', cajas: 0, avesPorCaja: 100, sexo: 'H', tipo: 'B' }]);
+    setShowModal(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (confirm('¿Eliminar esta orden de despacho?')) {
+      try {
+        await deleteDoc(doc(db, 'orders', id));
+      } catch (e) {
+        alert("Error al eliminar");
+      }
+    }
+  };
+
   const handleCreateOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.clientId) return alert("Seleccione un cliente");
@@ -37,29 +74,38 @@ export default function PollosBebes() {
     const totalAves = items.reduce((acc, it) => acc + (it.cajas * it.avesPorCaja), 0);
     const totalCajas = items.reduce((acc, it) => acc + Number(it.cajas), 0);
 
-    const docData = {
-      type: 'POLLO_BB',
-      serialNumber: `OBB-${Date.now().toString().slice(-6)}`,
+    const baseData = {
       clientId: client?.id,
       clientName: client?.name,
       plateNumber: formData.plateNumber,
-      date: Date.now(),
-      status: 'PENDING',
+      associatedSaleDocument: formData.associatedSaleDocument,
       incubatorDetails: items.map(it => ({
         ...it,
         cantidad: it.cajas * it.avesPorCaja
       })),
       totalQuantity: totalAves,
       totalBoxesOrCrates: totalCajas,
-      createdAt: Date.now(),
-      createdBy: currentUser?.uid || 'UNKNOWN'
     };
 
     try {
-      await addDoc(collection(db, 'orders'), docData);
+      if (editingOrder) {
+         await updateDoc(doc(db, 'orders', editingOrder.id), baseData);
+      } else {
+         const docData = {
+           ...baseData,
+           type: 'POLLO_BB',
+           serialNumber: `OBB-${Date.now().toString().slice(-6)}`,
+           date: Date.now(),
+           status: 'PENDING',
+           createdAt: Date.now(),
+           createdBy: currentUser?.uid || 'UNKNOWN'
+         };
+         await addDoc(collection(db, 'orders'), docData);
+      }
       setShowModal(false);
-      setFormData({ clientId: '', plateNumber: '' });
+      setFormData({ clientId: '', plateNumber: '', associatedSaleDocument: '' });
       setItems([{ incubadora: '01', cajas: 0, avesPorCaja: 100, sexo: 'H', tipo: 'B' }]);
+      setEditingOrder(null);
     } catch (e) {
       console.error(e);
       alert("Error al generar orden");
@@ -73,7 +119,7 @@ export default function PollosBebes() {
           <h1 className="text-2xl font-bold text-white">Despacho de Pollos BB</h1>
           <p className="text-slate-400">Gestión de planta de incubación y despachos.</p>
         </div>
-        <button onClick={() => setShowModal(true)} className="flex items-center space-x-2 bg-indigo-500 hover:bg-indigo-400 text-white px-5 py-2.5 rounded-2xl font-bold transition-all shadow-lg shadow-indigo-500/20">
+        <button onClick={handleOpenNew} className="flex items-center space-x-2 bg-indigo-500 hover:bg-indigo-400 text-white px-5 py-2.5 rounded-2xl font-bold transition-all shadow-lg shadow-indigo-500/20">
           <Plus className="w-5 h-5" /><span>Nueva Orden OPB</span>
         </button>
       </div>
@@ -84,6 +130,7 @@ export default function PollosBebes() {
             <tr>
               <th className="px-6 py-4 text-left text-xs font-semibold text-indigo-300 uppercase tracking-wider">Orden</th>
               <th className="px-6 py-4 text-left text-xs font-semibold text-indigo-300 uppercase tracking-wider">Fecha</th>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-indigo-300 uppercase tracking-wider">Doc. Venta</th>
               <th className="px-6 py-4 text-left text-xs font-semibold text-indigo-300 uppercase tracking-wider">Cliente</th>
               <th className="px-6 py-4 text-left text-xs font-semibold text-indigo-300 uppercase tracking-wider">Total Aves</th>
               <th className="px-6 py-4 text-right text-xs font-semibold text-indigo-300 uppercase tracking-wider">Acciones</th>
@@ -94,16 +141,19 @@ export default function PollosBebes() {
               <tr key={o.id} className="hover:bg-white/5 transition-colors">
                 <td className="px-6 py-4 whitespace-nowrap font-medium text-white">{o.serialNumber}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-slate-300">{format(o.date, 'dd/MM/yyyy HH:mm')}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-slate-300">{o.associatedSaleDocument || '-'}</td>
                 <td className="px-6 py-4 whitespace-nowrap font-medium text-white">{o.clientName}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-slate-300">{o.totalQuantity.toLocaleString()} ({o.totalBoxesOrCrates} cajas)</td>
                 <td className="px-6 py-4 whitespace-nowrap text-right space-x-2">
-                  <button className="text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 p-2 rounded-lg transition-colors border border-white/10"><Printer className="w-4 h-4" /></button>
+                  <button onClick={() => handleOpenEdit(o)} className="text-blue-400 hover:text-white bg-blue-500/10 hover:bg-blue-500/20 p-2 rounded-lg transition-colors" title="Editar"><Edit2 className="w-4 h-4" /></button>
+                  <button onClick={() => handleDelete(o.id)} className="text-red-400 hover:text-white bg-red-500/10 hover:bg-red-500/20 p-2 rounded-lg transition-colors" title="Eliminar"><Trash2 className="w-4 h-4" /></button>
+                  <button className="text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 p-2 rounded-lg transition-colors border border-white/10" title="Imprimir"><Printer className="w-4 h-4" /></button>
                 </td>
               </tr>
             ))}
             {orders.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-6 py-8 text-center text-slate-400">
+                <td colSpan={6} className="px-6 py-8 text-center text-slate-400">
                   No hay órdenes generadas aún.
                 </td>
               </tr>
@@ -120,7 +170,7 @@ export default function PollosBebes() {
             </div>
             
             <form onSubmit={handleCreateOrder} className="flex-1 overflow-y-auto p-6 space-y-6">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-1">Cliente</label>
                   <select required className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 ring-indigo-500/50 backdrop-blur-md text-white transition-all appearance-none" value={formData.clientId} onChange={e => setFormData({...formData, clientId: e.target.value})}>
@@ -131,6 +181,10 @@ export default function PollosBebes() {
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-1">Nro Placa</label>
                   <input type="text" className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 ring-indigo-500/50 backdrop-blur-md text-white transition-all" value={formData.plateNumber} onChange={e => setFormData({...formData, plateNumber: e.target.value})} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">Boleta / Factura</label>
+                  <input type="text" placeholder="Ej: F001-000021" className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 ring-indigo-500/50 backdrop-blur-md text-white transition-all" value={formData.associatedSaleDocument} onChange={e => setFormData({...formData, associatedSaleDocument: e.target.value})} />
                 </div>
               </div>
 
