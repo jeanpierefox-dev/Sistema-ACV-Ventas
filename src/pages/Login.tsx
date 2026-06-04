@@ -20,15 +20,16 @@ export default function Login() {
     setError('');
     setLoading(true);
     try {
+      const loginEmail = username.includes('@') ? username : `${username.toLowerCase().replace(/\s+/g, '')}@campoverde.com`;
+      
       if (isRegistering) {
-        const authEmail = `${username.toLowerCase().replace(/\s+/g, '')}@campoverde.com`;
-        const userCred = await createUserWithEmailAndPassword(auth, authEmail, password);
+        const userCred = await createUserWithEmailAndPassword(auth, loginEmail, password);
         // Create the user document with ADMIN role by default since it's the first registration flow
         await setDoc(doc(db, 'users', userCred.user.uid), {
           id: userCred.user.uid,
-          email: authEmail,
-          username: username,
-          name: name || username,
+          email: loginEmail,
+          username: username.includes('@') ? username.split('@')[0] : username,
+          name: name || (username.includes('@') ? username.split('@')[0] : username),
           role: 'ADMIN',
           isActive: true,
           createdAt: Date.now(),
@@ -36,8 +37,7 @@ export default function Login() {
         });
         navigate('/');
       } else {
-        const authEmail = `${username.toLowerCase().replace(/\s+/g, '')}@campoverde.com`;
-        await signInWithEmailAndPassword(auth, authEmail, password);
+        await signInWithEmailAndPassword(auth, loginEmail, password);
         navigate('/');
       }
     } catch (err: any) {
@@ -85,6 +85,8 @@ export default function Login() {
         setError('El navegador bloqueó la ventana emergente.');
       } else if (err.code === 'auth/cancelled-popup-request' || err.code === 'auth/popup-closed-by-user') {
         setError('La ventana emergente de inicio de sesión fue cerrada.');
+      } else if (err.code === 'auth/unauthorized-domain') {
+        setError('El dominio actual no está autorizado en Firebase. Para Vercel, agrégalo en Firebase Console > Authentication > Settings > Authorized domains.');
       } else {
         setError('Error al iniciar sesión con Google.');
       }
@@ -136,7 +138,7 @@ export default function Login() {
           )}
 
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Usuario</label>
+            <label className="block text-sm font-medium text-slate-300 mb-2">Usuario o Correo</label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                 <UserIcon className="h-5 w-5 text-slate-400" />
@@ -146,7 +148,7 @@ export default function Login() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 className="bg-white/10 border border-white/20 rounded-xl pl-10 pr-4 py-3 w-full text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 ring-indigo-500/50 backdrop-blur-md transition-all"
-                placeholder="Nombre de Usuario"
+                placeholder="Usuario o correo"
                 required
               />
             </div>
