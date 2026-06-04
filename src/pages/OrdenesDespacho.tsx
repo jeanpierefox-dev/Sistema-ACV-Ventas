@@ -318,7 +318,8 @@ export default function OrdenesDespacho() {
     doc.text('Punto de Partida:', 14, startY + 7);
     doc.setTextColor(0,0,0);
     doc.setFont('helvetica', 'normal');
-    const startAddress = sale.animalType === 'POLLO_BB' ? 'CAR. FEDERICO BASADRE KM 39.5 CAMPOVERDE' : 'CAR. FEDERICO BASADRE KM.30 CAS. ALTO MANANTAY';
+    // Planta (POLLO_BB) = KM 30, Granja (POLLO_VIVO) = KM 39.5
+    const startAddress = sale.animalType === 'POLLO_BB' ? 'CARRETERA FEDERICO BASADRE KM 30' : 'CARRETERA FEDERICO BASADRE KM 39.5';
     doc.text(startAddress, 45, startY + 7);
     doc.line(42, startY + 8, 200, startY + 8);
 
@@ -327,7 +328,21 @@ export default function OrdenesDespacho() {
     doc.text('Punto de Llegada:', 14, startY + 14);
     doc.setTextColor(0,0,0);
     doc.setFont('helvetica', 'normal');
-    doc.text(sale.clientAddress || '', 45, startY + 14);
+    
+    // Auto-fill and formatting logic for client address
+    let formattedDestAddress = sale.clientAddress || 'NO DECLARADO';
+    if (formattedDestAddress.includes('-')) {
+        const parts = formattedDestAddress.split('-').map(p => p.trim());
+        if (parts.length >= 3) {
+            const dpto = parts[parts.length - 1];
+            const prov = parts[parts.length - 2];
+            const dist = parts[parts.length - 3];
+            const mainA = parts.slice(0, parts.length - 3).join(' - ') || dist;
+            formattedDestAddress = `${mainA} - Dist: ${dist} - Prov: ${prov} - Dep: ${dpto}`;
+        }
+    }
+    
+    doc.text(formattedDestAddress, 45, startY + 14);
     doc.line(42, startY + 15, 200, startY + 15);
     
     doc.setTextColor(0, 0, 150);

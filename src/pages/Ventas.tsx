@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, orderBy, onSnapshot, addDoc, doc, deleteDoc } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, addDoc, doc, deleteDoc, getDocs, where } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../context/AuthContext';
 import { Sale } from '../types';
@@ -56,6 +56,21 @@ export default function Ventas() {
     setSearchingClient(true);
     try {
       const isRuc = formData.documentNumber.length === 11;
+      
+      const q = query(collection(db, 'clients'), where('documentNumber', '==', formData.documentNumber));
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        const clientData = snap.docs[0].data();
+        setFormData(prev => ({
+          ...prev,
+          client: clientData.name,
+          clientAddress: clientData.address || '',
+          documentType: isRuc ? 'FACTURA' : 'BOLETA'
+        }));
+        setSearchingClient(false);
+        return;
+      }
+
       const endpoint = isRuc 
         ? `https://api.apis.net.pe/v1/ruc?numero=${formData.documentNumber}`
         : `https://api.apis.net.pe/v1/dni?numero=${formData.documentNumber}`;
@@ -71,7 +86,7 @@ export default function Ventas() {
         documentType: isRuc ? 'FACTURA' : 'BOLETA'
       }));
     } catch (err) {
-      alert('No se pudo encontrar el cliente o el servicio está inactivo. Intente ingresarlo manualmente.');
+      console.warn('Busqueda externa fallida:', err);
     } finally {
       setSearchingClient(false);
     }
@@ -164,43 +179,91 @@ export default function Ventas() {
   const generatePDFA4 = (sale: Sale) => {
     const doc = new jsPDF();
     
-    doc.setFontSize(22);
-    doc.setTextColor('#4f46e5');
-    doc.text('CORPORING', 105, 20, { align: 'center' });
+    // Header
+    doc.setFillColor(79, 70, 229);
+    doc.rect(0, 0, 210, 40, 'F');
+    doc.setFontSize(24);
+    doc.setTextColor('#ffffff');
+    doc.setFont('helvetica', 'bold');
+    doc.text('CORPORING S.A.C.', 105, 20, { align: 'center' });
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Venta y Distribución de Aves a Nivel Nacional', 105, 28, { align: 'center' });
     
+    // Document box
+    doc.setDrawColor(79, 70, 229);
+    doc.setLineWidth(0.5);
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(130, 45, 65, 30, 3, 3, 'FD');
     doc.setFontSize(14);
     doc.setTextColor('#333333');
-    doc.text(`${sale.documentType} DE VENTA`, 105, 30, { align: 'center' });
+    doc.setFont('helvetica', 'bold');
+    doc.text(`RUC: 20123456789`, 162.5, 52, { align: 'center' });
+    doc.text(`${sale.documentType} ELECTRÓNICA`, 162.5, 60, { align: 'center' });
+    doc.setTextColor('#e63946');
+    doc.text(`${sale.documentNumber || 'S/N'}`, 162.5, 68, { align: 'center' });
     
+    // Client section
     doc.setFontSize(10);
-    doc.setTextColor('#666666');
-    doc.text(`Fecha: ${format(new Date(sale.date), 'dd/MM/yyyy HH:mm')}`, 14, 45);
-    doc.text(`Documento: ${sale.documentNumber || 'S/N'}`, 14, 52);
-    doc.text(`Cliente: ${sale.client}`, 14, 59);
-    if (sale.clientAddress) doc.text(`Dir: ${sale.clientAddress}`, 14, 66);
+    doc.setTextColor('#333333');
+    doc.setFont('helvetica', 'bold');
+    doc.text('Datos del Cliente:', 14, 50);
+    doc.setDrawColor(200, 200, 200);
+    doc.line(14, 52, 120, 52);
     
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Cliente: ${sale.client}`, 14, 60);
+    doc.text(`Documento: ${sale.documentNumber || 'S/N'}`, 14, 67);
+    if (sale.clientAddress) doc.text(`Dirección: ${sale.clientAddress}`, 14, 74);
+    doc.text(`Fecha de Emisión: ${format(new Date(sale.date), 'dd/MM/yyyy HH:mm')}`, 14, 81);
+    
+    // Table
     const tableData = [
-      ['Tipo', sale.animalType === 'POLLO_BB' ? 'Pollo Bebé' : 'Pollo Vivo', ''],
+      [
+        sale.animalType === 'POLLO_BB' ? 'Pollo Bebé' : 'Pollo Vivo',
+        sale.animalType === 'POLLO_BB' ? `Sexo: ${sale.sex || '-'}` : `Tipo: ${sale.tipoAve || '-'}`,
+        sale.quantity.toString(),
+        sale.animalType === 'POLLO_VIVO' ? (sale.peso ? sale.peso.toString() : '0') : '-',
+        `S/ ${sale.price.toFixed(2)}`,
+        `S/ ${sale.total.toFixed(2)}`
+      ]
     ];
 
-    if (sale.animalType === 'POLLO_BB') {
-        tableData.push(['Sexo', sale.sex || '-', '']);
-    } else {
-        tableData.push(['Tipo Ave', sale.tipoAve || '-', '']);
-        tableData.push(['Peso Total (Kg)', sale.peso?.toString() || '0', '']);
-    }
-
-    tableData.push(['Cantidad', sale.quantity.toString(), 'aves']);
-    tableData.push(['Precio Unitario', `S/ ${sale.price.toFixed(2)}`, sale.animalType === 'POLLO_BB' ? 'por ave' : 'por Kg']);
-    tableData.push(['Total', `S/ ${sale.total.toFixed(2)}`, '']);
-
     autoTable(doc, {
-      startY: 75,
-      head: [['Descripción', 'Detalle', 'Unidad']],
+      startY: 90,
+      head: [['Descripción', 'Detalles', 'Cantidad (Aves)', 'Peso Total (Kg)', 'P. Unitario', 'Subtotal']],
       body: tableData,
       theme: 'grid',
-      headStyles: { fillColor: [79, 70, 229] }
+      headStyles: { fillColor: [79, 70, 229], textColor: 255, halign: 'center' },
+      columnStyles: {
+        2: { halign: 'center' },
+        3: { halign: 'center' },
+        4: { halign: 'right' },
+        5: { halign: 'right' }
+      }
     });
+
+    // Totals
+    const finalY = (doc as any).lastAutoTable.finalY || 120;
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`TOTAL A PAGAR: S/ ${sale.total.toFixed(2)}`, 195, finalY + 15, { align: 'right' });
+    
+    // QR Code Simulation
+    doc.setDrawColor(0, 0, 0);
+    doc.rect(14, finalY + 10, 30, 30);
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    for (let i=0; i<6; i++) {
+        doc.line(14, finalY + 15 + i*5, 44, finalY + 15 + i*5);
+        doc.line(19 + i*5, finalY + 10, 19 + i*5, finalY + 40);
+    }
+    doc.setFillColor(255, 255, 255);
+    doc.rect(20, finalY + 20, 18, 10, 'F');
+    doc.text('QR', 29, finalY + 26, { align: 'center' });
+
+    doc.text('Representación impresa de la Boleta Electrónica', 105, finalY + 50, { align: 'center' });
+    doc.text('Consulte su comprobante en www.corporing.com/comprobantes', 105, finalY + 55, { align: 'center' });
     
     doc.save(`Venta_A4_${sale.documentNumber || sale.id.slice(0,6)}.pdf`);
   };
@@ -209,39 +272,79 @@ export default function Ventas() {
     const doc = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
-      format: [80, 150]
+      format: [80, 200]
     });
     
-    doc.setFontSize(14);
-    doc.text('CORPORING', 40, 10, { align: 'center' });
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('CORPORING S.A.C.', 40, 15, { align: 'center' });
     doc.setFontSize(8);
-    doc.text(`${sale.documentType} DE VENTA`, 40, 15, { align: 'center' });
-    doc.text(`Fecha: ${format(new Date(sale.date), 'dd/MM/yyyy HH:mm')}`, 5, 25);
-    doc.text(`Doc: ${sale.documentNumber || 'S/N'}`, 5, 30);
-    doc.text(`Cliente: ${sale.client}`, 5, 35);
-    if (sale.clientAddress) doc.text(`Dir: ${sale.clientAddress}`, 5, 40);
-
-    let y = 50;
-    doc.text('CANT', 5, y);
-    doc.text('DESCRIPCION', 15, y);
-    doc.text('TOTAL', 60, y);
-    y += 5;
+    doc.setFont('helvetica', 'normal');
+    doc.text('**************************************', 40, 20, { align: 'center' });
     
-    const desc = sale.animalType === 'POLLO_BB' ? `BB ${sale.sex}` : `Vivo ${sale.tipoAve}`;
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`${sale.documentType} ELECTRÓNICA`, 40, 26, { align: 'center' });
+    doc.text(`${sale.documentNumber || 'S/N'}`, 40, 31, { align: 'center' });
+    
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    let y = 40;
+    doc.text(`Fecha: ${format(new Date(sale.date), 'dd/MM/yyyy HH:mm')}`, 5, y); y += 5;
+    doc.text(`Cliente: ${sale.client}`, 5, y); y += 5;
+    doc.text(`Doc: ${sale.documentNumber || '-'}`, 5, y); y += 5;
+    if (sale.clientAddress) {
+       doc.text(`Dir: ${sale.clientAddress.substring(0,35)}`, 5, y); 
+       y += 5;
+    }
+    doc.text('--------------------------------------', 40, y, { align: 'center' }); y += 5;
+    
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'bold');
+    doc.text('CANT', 5, y);
+    doc.text('DESCRIPCIÓN', 15, y);
+    doc.text('UNIT', 52, y);
+    doc.text('TOTAL', 65, y);
+    y += 4;
+    doc.setFont('helvetica', 'normal');
+    
+    const isBB = sale.animalType === 'POLLO_BB';
+    const desc = isBB ? `Pollo BB ${sale.sex}` : `Pollo ${sale.tipoAve}`;
+    
     doc.text(`${sale.quantity}`, 5, y);
     doc.text(desc, 15, y);
-    doc.text(`S/ ${sale.total.toFixed(2)}`, 60, y);
-
-    y += 10;
-    if (sale.animalType === 'POLLO_VIVO') {
-        doc.text(`Peso Total: ${sale.peso} Kg`, 5, y);
+    doc.text(sale.price.toFixed(2), 52, y);
+    doc.text(sale.total.toFixed(2), 65, y);
+    y += 5;
+    
+    if (!isBB) {
+        doc.text(`Peso: ${sale.peso} Kg`, 15, y);
         y += 5;
     }
-    doc.text(`Precio U: S/ ${sale.price.toFixed(2)}`, 5, y);
 
-    y += 15;
+    doc.text('--------------------------------------', 40, y, { align: 'center' }); y += 5;
+    
     doc.setFontSize(10);
-    doc.text(`TOTAL: S/ ${sale.total.toFixed(2)}`, 40, y, { align: 'center' });
+    doc.setFont('helvetica', 'bold');
+    doc.text('TOTAL:', 35, y);
+    doc.text(`S/ ${sale.total.toFixed(2)}`, 65, y);
+    y += 10;
+    
+    // QR Code simulation
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.rect(30, y, 20, 20);
+    for(let i=0; i<4; i++){
+        doc.line(30, y+5+i*5, 50, y+5+i*5);
+        doc.line(35+i*5, y, 35+i*5, y+20);
+    }
+    doc.setFillColor(255,255,255);
+    doc.rect(35, y+7, 10, 6, 'F');
+    doc.text('QR', 40, y+11, {align:'center'});
+    
+    y += 28;
+    doc.text('¡Gracias por su compra!', 40, y, { align: 'center' }); y += 5;
+    doc.text('Representación impresa del CDP', 40, y, { align: 'center' });
     
     doc.save(`Venta_Ticket_${sale.documentNumber || sale.id.slice(0,6)}.pdf`);
   };

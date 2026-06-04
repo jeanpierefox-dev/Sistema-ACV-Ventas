@@ -93,6 +93,7 @@ export default function Certificados() {
     const isPolloBB = sale.animalType === 'POLLO_BB';
     const nroAutorizacion = isPolloBB ? '05891' : '08638';
     const nombreEstablecimiento = isPolloBB ? 'PLANTA INCUBADORA - CAMPO VERDE' : 'GRANJA - CAMPO VERDE';
+    const direccionEstablecimiento = isPolloBB ? 'CARRETERA FEDERICO BASADRE KM 30' : 'CARRETERA FEDERICO BASADRE KM 39.5';
 
     // Row 4: Nombre / N Autorizacion
     doc.rect(14, currentY, 130, 8);
@@ -127,7 +128,7 @@ export default function Certificados() {
     doc.text('UCAYALI', 16, currentY + 10);
     doc.text('CORONEL PORTILLO', 66, currentY + 10);
     doc.text('CAMPO VERDE', 116, currentY + 10);
-    doc.text('CARRETERA FEDERICO BASADRE KM 39.5', 166, currentY + 10);
+    doc.text(direccionEstablecimiento, 166, currentY + 10);
     doc.setTextColor(0,0,0);
     currentY += 12;
 
@@ -137,6 +138,24 @@ export default function Certificados() {
     doc.setFontSize(9);
     doc.text('DESTINO DE LAS MERCANCÍAS DE ORIGEN AVÍCOLA', 149, currentY + 5, { align: 'center' });
     currentY += 7;
+
+    // Attempt to parse dest address to extract province/dist if hyphens exist (simple heuristic)
+    let dptoDest = 'UCAYALI';
+    let provDest = 'CORONEL PORTILLO';
+    let distDest = '-';
+    let mainAddr = sale.clientAddress || 'NO DECLARADO';
+    if (mainAddr.includes('-')) {
+        const parts = mainAddr.split('-').map(p => p.trim());
+        if (parts.length >= 3) {
+            dptoDest = parts[parts.length - 1];
+            provDest = parts[parts.length - 2];
+            distDest = parts[parts.length - 3];
+            mainAddr = parts.slice(0, parts.length - 3).join(' - ') || distDest;
+        } else if (parts.length === 2) {
+            distDest = parts[1];
+            mainAddr = parts[0];
+        }
+    }
 
     // Row 7: Destino Ubicacion
     doc.rect(14, currentY, 50, 10);
@@ -151,8 +170,10 @@ export default function Certificados() {
     
     doc.setFontSize(10);
     doc.setTextColor(0, 0, 150);
-    doc.text(sale.clientAddress || 'NO DECLARADO', 166, currentY + 8);
-    doc.text('UCAYALI', 16, currentY + 8); // Se asume por defecto a menos q pongan otra cosa
+    doc.text(dptoDest, 16, currentY + 8);
+    doc.text(provDest, 66, currentY + 8);
+    doc.text(distDest, 116, currentY + 8);
+    doc.text(mainAddr.substring(0, 60), 166, currentY + 8);
     doc.setTextColor(0,0,0);
     currentY += 10;
 

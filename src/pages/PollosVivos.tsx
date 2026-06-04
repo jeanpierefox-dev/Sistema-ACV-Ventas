@@ -145,6 +145,7 @@ export default function PollosVivos() {
               <th className="px-6 py-4 text-left text-xs font-semibold text-indigo-300 uppercase tracking-wider">Doc. Venta</th>
               <th className="px-6 py-4 text-left text-xs font-semibold text-indigo-300 uppercase tracking-wider">Cliente</th>
               <th className="px-6 py-4 text-left text-xs font-semibold text-indigo-300 uppercase tracking-wider">Aves</th>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-indigo-300 uppercase tracking-wider">Detalle Operativo (Plantel, Galpón, Promedio)</th>
               <th className="px-6 py-4 text-right text-xs font-semibold text-indigo-300 uppercase tracking-wider">Acciones</th>
             </tr>
           </thead>
@@ -156,6 +157,13 @@ export default function PollosVivos() {
                 <td className="px-6 py-4 whitespace-nowrap text-slate-300">{o.associatedSaleDocument || '-'}</td>
                 <td className="px-6 py-4 whitespace-nowrap font-medium text-white">{o.clientName}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-slate-300">{o.totalQuantity.toLocaleString()} Und. ({o.totalBoxesOrCrates} jabas)</td>
+                <td className="px-6 py-4 text-slate-400 text-xs">
+                  {o.plantelDetails?.map((d, i) => (
+                    <div key={i}>
+                      {d.plantel} G:{d.galpon} | {d.jabas} jb x {d.avesPorJaba} av | Pm: {d.pesoPromedio} Kg
+                    </div>
+                  ))}
+                </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right space-x-2">
                   <button onClick={() => handleOpenEdit(o)} className="text-blue-400 hover:text-white bg-blue-500/10 hover:bg-blue-500/20 p-2 rounded-lg transition-colors" title="Editar"><Edit2 className="w-4 h-4" /></button>
                   <button onClick={() => handleDelete(o.id)} className="text-red-400 hover:text-white bg-red-500/10 hover:bg-red-500/20 p-2 rounded-lg transition-colors" title="Eliminar"><Trash2 className="w-4 h-4" /></button>

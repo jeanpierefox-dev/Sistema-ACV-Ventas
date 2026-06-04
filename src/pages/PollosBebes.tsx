@@ -133,6 +133,7 @@ export default function PollosBebes() {
               <th className="px-6 py-4 text-left text-xs font-semibold text-indigo-300 uppercase tracking-wider">Doc. Venta</th>
               <th className="px-6 py-4 text-left text-xs font-semibold text-indigo-300 uppercase tracking-wider">Cliente</th>
               <th className="px-6 py-4 text-left text-xs font-semibold text-indigo-300 uppercase tracking-wider">Total Aves</th>
+              <th className="px-6 py-4 text-left text-xs font-semibold text-indigo-300 uppercase tracking-wider">Detalle (Incub., Cajas, Sexo)</th>
               <th className="px-6 py-4 text-right text-xs font-semibold text-indigo-300 uppercase tracking-wider">Acciones</th>
             </tr>
           </thead>
@@ -144,6 +145,13 @@ export default function PollosBebes() {
                 <td className="px-6 py-4 whitespace-nowrap text-slate-300">{o.associatedSaleDocument || '-'}</td>
                 <td className="px-6 py-4 whitespace-nowrap font-medium text-white">{o.clientName}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-slate-300">{o.totalQuantity.toLocaleString()} ({o.totalBoxesOrCrates} cajas)</td>
+                <td className="px-6 py-4 text-slate-400 text-xs">
+                  {o.incubatorDetails?.map((d, i) => (
+                    <div key={i}>
+                      Inc:{d.incubadora} | {d.cajas} cj x {d.avesPorCaja} = {d.cantidad} (Sex: {d.sexo})
+                    </div>
+                  ))}
+                </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right space-x-2">
                   <button onClick={() => handleOpenEdit(o)} className="text-blue-400 hover:text-white bg-blue-500/10 hover:bg-blue-500/20 p-2 rounded-lg transition-colors" title="Editar"><Edit2 className="w-4 h-4" /></button>
                   <button onClick={() => handleDelete(o.id)} className="text-red-400 hover:text-white bg-red-500/10 hover:bg-red-500/20 p-2 rounded-lg transition-colors" title="Eliminar"><Trash2 className="w-4 h-4" /></button>
